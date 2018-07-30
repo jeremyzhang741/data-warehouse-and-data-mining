@@ -1,139 +1,128 @@
-## import modules here 
+import helper
+from sklearn.feature_extraction.text import TfidfTransformer
+from numpy import *
+from sklearn import svm
 
-################# Question 0 #################
-
-def add(a, b): # do not change the heading of the function
-    return a + b
-
-
-################# Question 1 #################
-
-def nsqrt(x): # do not change the heading of the function
-    a = 0
-    b = x
-    while (a <= b):
-        mid = (a + b) // 2
-        if mid * mid == x:
-            return mid
-        elif mid * mid < x:
-            a = mid + 1
+def count_word_num(data):
+    result = {}
+    for word in data:
+        if word in result:
+            result[word] += 1
         else:
-            b = mid - 1
-    return b
+            result[word] = 1
+    return result
 
-
-################# Question 2 #################
-
-
-# x_0: initial guess
-# EPSILON: stop when abs(x - x_new) < EPSILON
-# MAX_ITER: maximum number of iterations
-
-## NOTE: you must use the default values of the above parameters, do not change them
-
-def find_root(f, fprime, x_0=1.0, EPSILON = 1E-7, MAX_ITER = 1000): # do not change the heading of the function
-    x = x_0
-    for i in range(MAX_ITER):
-        x_new = x - f(x)/fprime(x)
-        if abs(x - x_new) < EPSILON:
-            return x_new
-        x = x_new
-
-
-################# Question 3 #################
-
-class Tree(object):
-    def __init__(self, name='ROOT', children=None):
-        self.name = name
-        self.children = []
-        if children is not None:
-            for child in children:
-                self.add_child(child)
-    def __repr__(self):
-        return self.name
-    def add_child(self, node):
-        assert isinstance(node, Tree)
-        self.children.append(node)
-
-def make_tree(tokens): # do not change the heading of the function
-    if not tokens:
-        return
-    global stack 
-    stack = stack()
-    i = 0
-    stack.push(tokens[i])
-    while i < len(tokens):
-        i += 1
-        if i == len(tokens):
-            break
-        if tokens[i] != ']':
-            stack.push(tokens[i])
+def combine_word_count(result, sample):
+    for word in sample:
+        if word in result:
+            result[word]+=sample[word]
         else:
-            item = stack.pop()
-            if isinstance(item, Tree) == True:
-                M = []
-                M.append(item)
-                item = stack.pop()
-                while item != '[':
-                    if isinstance(item, Tree) == True:
-                        M.append(item)
-                        item = stack.pop()
-                    else:
-                        t = Tree(item)
-                        M.append(t)
-                        item = stack.pop()
-                item = stack.pop()
-                M.reverse()
-                t = Tree(item, M)
-                stack.push(t)
+            result[word]=sample[word]
+    return result
+
+def total_word_count(data_set):
+    result = {}
+    for data in data_set:
+        for word in data:
+            if word in result:
+                result[word] += 1
             else:
-                L = []
-                while item != '[':
-                    if isinstance(item, Tree) == True:
-                        L.append(item)
-                        item = stack.pop()
-                        continue
-                    t = Tree(item)
-                #L = []
-                    L.append(t)
-                    item = stack.pop()
-                item = stack.pop()
-                L.reverse()
-                t = Tree(item, L)
-                stack.push(t)
-    t = stack.pop()
-    return t
+                result[word] = 1
+    return result
 
-class stack:
-    def __init__(self):
-        self.items = []
+def modifed_data_func(weight_list):
+    with open('test_data.txt','r') as test_data_file:
+        test_data=[line.strip().split(' ') for line in test_data_file]
+    with open('modified_data.txt', 'w') as modified_data:
+        for e in test_data:
+            modified_count = 0
+            delete_list = set([])
+            for e2 in weight_list:
+                while True:
+                    if e2[0] in set(e):
+                        e.remove(e2[0])
+                        delete_list.add(e2[0])
+                    else:
+                        break
+                if len(delete_list) == 20:
+                    break
+        for e in test_data:
+            line = ''
+            for word in e:
+                line+=word
+                line+=' '
+            line = line[:-1]
+            line+='\n'
+            modified_data.write(line)
 
-    def isEmpty(self):
-        return len(self.items)==0
+def fool_classifier(test_data): ## Please do not change the function defination...
+    ## Read the test data file, i.e., 'test_data.txt' from Present Working Directory...
+    
+    
+    ## You are supposed to use pre-defined class: 'strategy()' in the file `helper.py` for model training (if any),
+    #  and modifications limit checking
+    strategy_instance = helper.strategy()
+    parameters={'gamma':'auto','C':1,'kernel':'linear','degree':3,'coef0':0.0}
+    
+    d1 = total_word_count(strategy_instance.class0)
+    d1_copy = total_word_count(strategy_instance.class0)
+    d2 = total_word_count(strategy_instance.class1)
+    d3 = combine_word_count(d1_copy, d2)
 
-    def push(self,item):
-        self.items.append(item)
+    x_train = []
+    y_train = []
+    
+    for e in strategy_instance.class0:
+        vector = []
+        vector_sum = 0
+        word_frequency = count_word_num(e)
+        for word in d3:
+            if word in word_frequency:
+                vector.append(word_frequency[word])
+                vector_sum += word_frequency[word]
+            else:
+                vector.append(0)
+        if vector_sum != 0:
+            x_train.append(vector)
+            y_train.append(0)
 
-    def pop(self):
-        return self.items.pop()
+    for e in strategy_instance.class1:
+        vector = []
+        vector_sum = 0
+        word_frequency = count_word_num(e)
+        for word in d3:
+            if word in word_frequency:
+                vector.append(word_frequency[word])
+                vector_sum += word_frequency[word]
+            else:
+                vector.append(0)
+        if vector_sum != 0:
+            x_train.append(vector)
+            y_train.append(1)
 
-    def peek(self):
-        if not self.isEmpty():
-            return self.items[len(self.items)-1]
+    x_train = array(x_train)
+    y_train = array(y_train)
 
-    def size(self):
-        return len(self.items)   
+    transformer = TfidfTransformer()
 
-def max_depth(root): # do not change the heading of the function
-    if root.children == None:
-        return 0
-    d = 1
-    for child in root.children:
-        d = max(d,max_depth(child) + 1)
-    return d
+    clf = strategy_instance.train_svm(parameters, x_train, y_train)
+    
+    word_weight = clf.coef_.tolist()[0]
+    
+    i = 0
+    weight_list = []
+    for word in d3:
+        weight_list.append((word, word_weight[i]))
+        i += 1
 
-L = [[1,2,3]]*4
-n = -1
-for i in range(4):
-    n += 1
-    print(L[n][i])
+    weight_list = sorted(weight_list, key = lambda x: x[1], reverse = True)
+    for i in range(len(weight_list)):
+        if weight_list[i][1]<=0:
+            break
+    weight_delete_list = weight_list[:i]
+    modifed_data_func(weight_delete_list)
+
+    ## You can check that the modified text is within the modification limits.
+    modified_data = './modified_data.txt'
+    assert strategy_instance.check_data(test_data, modified_data)
+    return strategy_instance ## NOTE: You are required to return the instance of this class.
